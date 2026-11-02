@@ -326,55 +326,33 @@ function createPuzzle(level) {
     const config = SETTINGS[level];
     const size = config.size;
 
-    let solution = null;
-
-    for (let attempt = 0; attempt < 20; attempt++) {
-        solution = generateFleet(size, config.fleet);
-        if (solution) break;
-    }
+    const solution = generateFleet(size, config.fleet);
 
     if (!solution) {
-        throw new Error("Could not generate a fleet.");
+            throw new Error("Could not generate a fleet.");
     }
 
-    // 0 = unknown, 1 = given ship, 2 = given water
     const givens = emptyGrid(size);
+
+    // Limit starting clues so the board is never revealed.
+    const clueLimits = {
+        easy: 5,
+        medium: 4,
+        hard: 2
+    };
 
     const positions = shuffle(
         Array.from({ length: size * size }, (_, i) => i)
     );
 
-    let clueCount = 0;
+    const clueCount = clueLimits[level];
 
-    function addClue(position) {
+    for (let i = 0; i < clueCount; i++) {
+        const position = positions[i];
         const r = Math.floor(position / size);
         const c = position % size;
 
-        if (givens[r][c] !== 0) return;
-
         givens[r][c] = solution[r][c] === 1 ? 1 : 2;
-        clueCount++;
-    }
-
-    for (let i = 0; i < config.startingClues; i++) {
-        addClue(positions[i]);
-    }
-
-    let next = config.startingClues;
-    let result = countSolutions(
-        solution, config.fleet, givens
-    );
-
-    while (result !== 1 && next < positions.length) {
-        addClue(positions[next++]);
-
-        result = countSolutions(
-            solution, config.fleet, givens
-        );
-    }
-
-    if (result !== 1) {
-        throw new Error("Could not verify puzzle uniqueness.");
     }
 
     return {
@@ -419,15 +397,145 @@ function startTimer() {
     }, 1000);
 }
 
+function getPlayerShips() {
+    const size = game.size;
+    const visited = emptyGrid(size, false);
+    const ships = [];
+
+    for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+            if (game.player[r][c] !== 1 || visited[r][c]) {
+                continue;
+            }
+
+            const cells = [];
+            const stack = [[r, c]];
+
+            while (stack.length) {
+                const [row, col] = stack.pop();
+
+                if (
+                    row < 0 || row >= size ||
+                    col < 0 || col >= size ||
+                    visited[row][col] ||
+                    game.player[row][col] !== 1
+                ) continue;
+
+                visited[row][col] = true;
+                cells.push([row, col]);
+
+                stack.push(
+                    [row - 1, col],
+                    [row + 1, col],
+                    [row, col - 1],
+                    [row, col + 1]
+                );
+            }
+
+            const sameRow = cells.every(
+                cell => cell[0] === cells[0][0]
+            );
+
+            const sameCol = cells.every(
+                cell => cell[1] === cells[0][1]
+            );
+
+            let valid = sameRow || sameCol;
+
+            // Check for diagonal touching and invalid shapes.
+            for (const [row, col] of cells) {
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        const nr = row + dr;
+                        const nc = col + dc;
+
+                        if (
+                            nr < 0 || nr >= size ||
+                            nc < 0 || nc >= size
+                        ) continue;
+
+                        if (game.player[nr][nc] !== 1) continue;
+
+                        if (
+                            !cells.some(([a, b]) => a === nr && b === nc)
+                        ) {
+                            valid = false;
+                        }
+                    }
+                }
+            }
+
+            ships.push({
+                length: cells.length,
+                cells,
+                valid
+            });
+        }
+    }
+
+  return ships;
+}
+
 function renderFleet() {
     fleetEl.innerHTML = "";
 
+    const playerShips = getPlayerShips();
+    const found = {};
+
+    // Count valid completed ships by length.
+    for (const ship of playerShips) {
+        if (!ship.valid) continue;
+
+        const length = ship.length;
+
+        if (!game.fleet.includes(length)) continue;
+
+        // A marked ship is complete only if it exactly
+        // matches a ship in the generated solution.
+        const matchesSolution = ship.cells.every(
+            ([r, c]) => game.solution[r][c] === 1
+        );
+
+        const solutionCells = ship.cells.flatMap(
+            ([r, c]) => {
+                return [
+                    [r - 1, c],
+                    [r + 1, c],
+                    [r, c - 1],
+                    [r, c + 1]
+                ];
+            }
+        );
+
+        const hasMissingSegment = solutionCells.some(
+            ([r, c]) =>
+                r >= 0 && r < game.size &&
+                c >= 0 && c < game.size &&
+                game.solution[r][c] === 1 &&
+                game.player[r][c] !== 1
+        );
+
+        if (matchesSolution && !hasMissingSegment) {
+            found[length] = (found[length] || 0) + 1;
+        }
+    }
+
+    const used = {};
+
     for (const length of game.fleet) {
+        used[length] = (used[length] || 0) + 1;
+
+        const completed = used[length] <= (found[length] || 0);
+
+        const item = document.createElement("div");
+        item.className = "fleet-item";
+
+        if (completed) {
+            item.classList.add("found");
+        }
+
         const ship = document.createElement("div");
         ship.className = "fleet-ship";
-        ship.setAttribute(
-            "aria-label", `Ship of length ${length}`
-        );
 
         for (let i = 0; i < length; i++) {
             const segment = document.createElement("span");
@@ -435,7 +543,14 @@ function renderFleet() {
             ship.appendChild(segment);
         }
 
-        fleetEl.appendChild(ship);
+        const tick = document.createElement("span");
+        tick.className = "fleet-tick";
+        tick.textContent = completed ? "✓" : "";
+
+        item.appendChild(ship);
+        item.appendChild(tick);
+
+        fleetEl.appendChild(item);
     }
 }
 
@@ -544,21 +659,82 @@ function renderBoard() {
 
         boardEl.appendChild(clue);
     }
+    renderFleet();
 }
 
 function checkAnswer() {
     if (!game || game.finished) return;
 
-    const size = game.size;
+    const ships = getPlayerShips();
 
-    for (let r = 0; r < size; r++) {
-        for (let c = 0; c < size; c++) {
-            const expected = game.solution[r][c] === 1;
-            const actual = game.player[r][c] === 1;
+    if (ships.some(ship => !ship.valid)) {
+        setMessage(
+            "Some ships are bent or touching other ships.",
+            "error"
+        );
+        return;
+    }
 
-            if (expected !== actual) {
+    const actualFleet = ships
+        .map(ship => ship.length)
+        .sort((a, b) => b - a);
+
+  const expectedFleet = [...game.fleet]
+    .sort((a, b) => b - a);
+
+  if (
+    JSON.stringify(actualFleet) !==
+    JSON.stringify(expectedFleet)
+    ) {
+        setMessage(
+            "The fleet is not complete yet.",
+            "error"
+        );
+        return;
+    }
+
+    const counts = getCounts(
+        game.player.map(row =>
+            row.map(cell => cell === 1 ? 1 : 0)
+        )
+    );
+
+    const rowsCorrect = counts.rows.every(
+        (n, i) => n === game.counts.rows[i]
+    );
+
+    const colsCorrect = counts.cols.every(
+        (n, i) => n === game.counts.cols[i]
+    );
+
+    if (!rowsCorrect || !colsCorrect) {
+        setMessage(
+            "Some row or column totals are incorrect.",
+            "error"
+        );
+        return;
+    }
+
+    // Starting clues must still be respected.
+    for (let r = 0; r < game.size; r++) {
+        for (let c = 0; c < game.size; c++) {
+            if (
+                game.givens[r][c] === 2 &&
+                game.player[r][c] === 1
+            ) {
                 setMessage(
-                    "Not quite! Check the row and column clues.",
+                    "A water clue has been marked as a ship.",
+                    "error"
+                );
+                return;
+            }
+
+            if (
+                game.givens[r][c] === 1 &&
+                game.player[r][c] !== 1
+            ) {
+                setMessage(
+                    "A ship clue is missing.",
                     "error"
                 );
                 return;
@@ -571,7 +747,7 @@ function checkAnswer() {
     renderBoard();
 
     setMessage(
-        `Puzzle solved in ${formatTime(game.seconds)}!`,
+        `Congratulations! Solved in ${formatTime(game.seconds)}!`,
         "success"
     );
 }
