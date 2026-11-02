@@ -250,3 +250,27 @@ footer {
         border-radius: 2px;
     }
 }
+
+/* Return button */
+
+.return-container {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 20px;
+}
+
+.return-button {
+  background: transparent;
+  color: var(--navy);
+  border: 1px solid var(--navy);
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.return-button:hover {
+  background: var(--navy);
+  color: white;
+}

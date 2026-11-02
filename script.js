@@ -638,10 +638,13 @@ function newGame() {
     }, 20);
 }
 
-$("new-game").addEventListener("click", newGame);
-$("check").addEventListener("click", checkAnswer);
-$("hint").addEventListener("click", giveHint);
-$("clear").addEventListener("click", clearBoard);
-$("reveal").addEventListener("click", revealSolution);
+$("returnBtn").addEventListener("click", () => {
+    window.location.href = "../";
+});
+$("newGameBtn").addEventListener("click", newGame);
+$("checkBtn").addEventListener("click", checkAnswer);
+$("hintBtn").addEventListener("click", giveHint);
+$("clearBtn").addEventListener("click", clearBoard);
+$("revealBtn").addEventListener("click", revealSolution);
 
 newGame();
