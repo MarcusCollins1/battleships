@@ -838,7 +838,7 @@ function newGame() {
 }
 
 $("returnBtn").addEventListener("click", () => {
-    window.location.href = "../";
+    window.location.href = "../games.html";
 });
 $("newGameBtn").addEventListener("click", newGame);
 $("checkBtn").addEventListener("click", checkAnswer);
