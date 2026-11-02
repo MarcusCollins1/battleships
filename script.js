@@ -621,7 +621,7 @@ function newGame() {
             try {
                 game = createPuzzle(level);
 
-                $("difficulty-label").textContent = level.charAt(0).toUpperCase() + level.slice(1);
+                $("difficultyLabel").textContent = level.charAt(0).toUpperCase() + level.slice(1);
 
                 renderFleet();
                 renderBoard();
