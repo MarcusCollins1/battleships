@@ -507,45 +507,18 @@ function getPlayerShips() {
 function renderFleet() {
     fleetEl.innerHTML = "";
 
+    // Detect ships drawn by the player.
+    // Do NOT compare them with the hidden solution.
     const playerShips = getPlayerShips();
+
     const found = {};
 
-    // Count valid completed ships by length.
+    // Count valid ships by their length.
     for (const ship of playerShips) {
         if (!ship.valid) continue;
 
         const length = ship.length;
-
-        if (!game.fleet.includes(length)) continue;
-
-        // A marked ship is complete only if it exactly
-        // matches a ship in the generated solution.
-        const matchesSolution = ship.cells.every(
-            ([r, c]) => game.solution[r][c] === 1
-        );
-
-        const solutionCells = ship.cells.flatMap(
-            ([r, c]) => {
-                return [
-                    [r - 1, c],
-                    [r + 1, c],
-                    [r, c - 1],
-                    [r, c + 1]
-                ];
-            }
-        );
-
-        const hasMissingSegment = solutionCells.some(
-            ([r, c]) =>
-                r >= 0 && r < game.size &&
-                c >= 0 && c < game.size &&
-                game.solution[r][c] === 1 &&
-                game.player[r][c] !== 1
-        );
-
-        if (matchesSolution && !hasMissingSegment) {
-            found[length] = (found[length] || 0) + 1;
-        }
+        found[length] = (found[length] || 0) + 1;
     }
 
     const used = {};
@@ -553,6 +526,8 @@ function renderFleet() {
     for (const length of game.fleet) {
         used[length] = (used[length] || 0) + 1;
 
+        // Tick off as many ships of this length
+        // as the player has drawn.
         const completed = used[length] <= (found[length] || 0);
 
         const item = document.createElement("div");
