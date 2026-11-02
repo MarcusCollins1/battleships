@@ -1,0 +1,647 @@
+
+"use strict";
+
+const SETTINGS = {
+    easy: {
+        size: 6,
+        fleet: [3, 2, 1, 1],
+        startingClues: 5
+    },
+    medium: {
+        size: 8,
+        fleet: [4, 3, 2, 2, 1, 1],
+        startingClues: 5
+    },
+    hard: {
+        size: 10,
+        fleet: [4, 3, 3, 2, 2, 2, 1, 1, 1, 1],
+        startingClues: 2
+    }
+};
+
+const $ = id => document.getElementById(id);
+
+const boardEl = $("board");
+const fleetEl = $("fleet");
+const messageEl = $("message");
+
+let game = null;
+let timerInterval = null;
+
+function randomInt(max) {
+    return Math.floor(Math.random() * max);
+}
+
+function shuffle(items) {
+    const result = [...items];
+
+    for (let i = result.length - 1; i > 0; i--) {
+        const j = randomInt(i + 1);
+        [result[i], result[j]] = [result[j], result[i]];
+    }
+
+    return result;
+}
+
+function emptyGrid(size, value = 0) {
+    return Array.from(
+        { length: size },
+        () => Array(size).fill(value)
+    );
+}
+
+function cloneGrid(grid) {
+    return grid.map(row => [...row]);
+}
+
+function getCounts(grid) {
+    const size = grid.length;
+
+    return {
+        rows: grid.map(row =>
+            row.reduce((sum, cell) => sum + cell, 0)
+        ),
+        cols: Array.from({ length: size }, (_, col) =>
+            grid.reduce((sum, row) => sum + row[col], 0)
+        )
+    };
+}
+
+// A ship cannot overlap or touch another ship.
+function canPlace(grid, row, col, length, vertical) {
+    const size = grid.length;
+
+    for (let i = 0; i < length; i++) {
+        const r = row + (vertical ? i : 0);
+        const c = col + (vertical ? 0 : i);
+
+        if (r >= size || c >= size) return false;
+
+        for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+                if (grid[r + dr]?.[c + dc] === 1) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+function placeShip(grid, row, col, length, vertical, value) {
+    for (let i = 0; i < length; i++) {
+        const r = row + (vertical ? i : 0);
+        const c = col + (vertical ? 0 : i);
+        grid[r][c] = value;
+    }
+}
+
+// Generate a random valid hidden fleet.
+function generateFleet(size, fleet) {
+    const grid = emptyGrid(size);
+
+    function backtrack(index) {
+        if (index === fleet.length) return true;
+
+        const length = fleet[index];
+        const options = [];
+
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c < size; c++) {
+                for (const vertical of [false, true]) {
+                    if (length === 1 && vertical) continue;
+
+                    if (canPlace(grid, r, c, length, vertical)) {
+                        options.push({ r, c, vertical });
+                    }
+                }
+            }
+        }
+
+        for (const option of shuffle(options)) {
+            placeShip(
+                grid, option.r, option.c,
+                length, option.vertical, 1
+            );
+
+            if (backtrack(index + 1)) return true;
+
+            placeShip(
+                grid, option.r, option.c,
+                length, option.vertical, 0
+            );
+        }
+
+        return false;
+    }
+
+    return backtrack(0) ? grid : null;
+}
+
+// Build every possible position for a ship.
+function makePlacements(size, length) {
+    const placements = [];
+
+    for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+            for (const vertical of [false, true]) {
+                if (length === 1 && vertical) continue;
+
+                const cells = [];
+                const neighbors = new Set();
+
+                for (let i = 0; i < length; i++) {
+                    const rr = r + (vertical ? i : 0);
+                    const cc = c + (vertical ? 0 : i);
+
+                    if (rr >= size || cc >= size) break;
+
+                    cells.push(rr * size + cc);
+
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            const nr = rr + dr;
+                            const nc = cc + dc;
+
+                            if (
+                                nr >= 0 && nr < size &&
+                                nc >= 0 && nc < size
+                            ) {
+                                neighbors.add(nr * size + nc);
+                            }
+                        }
+                    }
+                }
+
+                if (cells.length !== length) continue;
+
+                const bit = n => 1n << BigInt(n);
+
+                placements.push({
+                    cells,
+                    mask: cells.reduce(
+                        (mask, n) => mask | bit(n), 0n
+                    ),
+                    blocked: [...neighbors].reduce(
+                        (mask, n) => mask | bit(n), 0n
+                    ),
+                    rows: cells.map(n => Math.floor(n / size)),
+                    cols: cells.map(n => n % size)
+                });
+            }
+        }
+    }
+
+    return placements;
+}
+
+// Count possible solutions, stopping at two.
+// A result of 1 means the puzzle is unique.
+// A result of 2 means multiple solutions exist.
+// null means the search budget was exceeded.
+function countSolutions(solution, fleet, givens) {
+    const size = solution.length;
+    const target = getCounts(solution);
+    const lengths = [...fleet].sort((a, b) => b - a);
+    const uniqueLengths = [...new Set(lengths)];
+
+    const candidates = Object.fromEntries(
+        uniqueLengths.map(length => [
+            length,
+            makePlacements(size, length).filter(p =>
+                p.cells.every(n => {
+                    const r = Math.floor(n / size);
+                    const c = n % size;
+                    return givens[r][c] !== 2;
+                })
+            )
+        ])
+    );
+
+    const required = [];
+    for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+            if (givens[r][c] === 1) {
+                required.push(r * size + c);
+            }
+        }
+    }
+
+    const bit = n => 1n << BigInt(n);
+    const requiredMask = required.reduce(
+        (mask, n) => mask | bit(n), 0n
+    );
+
+    const rowUsed = Array(size).fill(0);
+    const colUsed = Array(size).fill(0);
+    const remaining = Array(lengths.length + 1).fill(0);
+
+    for (let i = lengths.length - 1; i >= 0; i--) {
+        remaining[i] = remaining[i + 1] + lengths[i];
+    }
+
+    let solutions = 0;
+    let nodes = 0;
+    const NODE_LIMIT = 80000;
+
+    function search(index, occupied, blocked, lastChoice) {
+        if (++nodes > NODE_LIMIT) return false;
+        if (solutions >= 2) return true;
+
+        if (index === lengths.length) {
+            if (
+                rowUsed.some((n, r) => n !== target.rows[r]) ||
+                colUsed.some((n, c) => n !== target.cols[c])
+            ) return true;
+
+            if ((occupied & requiredMask) !== requiredMask) {
+                return true;
+            }
+
+            solutions++;
+            return true;
+        }
+
+        const length = lengths[index];
+        const options = candidates[length];
+        const sameAsPrevious = index > 0 && lengths[index - 1] === length;
+        const start = sameAsPrevious ? lastChoice + 1 : 0;
+
+        for (let i = start; i < options.length; i++) {
+            const p = options[i];
+
+            if ((p.mask & blocked) !== 0n) continue;
+
+            let valid = true;
+
+            for (const r of p.rows) rowUsed[r]++;
+            for (const c of p.cols) colUsed[c]++;
+
+            for (let j = 0; j < size; j++) {
+                if (
+                    rowUsed[j] > target.rows[j] ||
+                    colUsed[j] > target.cols[j]
+                ) {
+                    valid = false;
+                    break;
+                }
+            }
+
+            if (valid) {
+                const nextOccupied = occupied | p.mask;
+                const nextBlocked = blocked | p.blocked;
+
+                // Required ship cells must still be coverable.
+                const uncovered = requiredMask & ~nextOccupied;
+
+                if ((uncovered & nextBlocked) === 0n) {
+                    valid = search(
+                        index + 1,
+                        nextOccupied,
+                        nextBlocked,
+                        i
+                    );
+                } else {
+                    valid = true;
+                }
+            }
+
+            for (const r of p.rows) rowUsed[r]--;
+            for (const c of p.cols) colUsed[c]--;
+
+            if (!valid) return false;
+            if (solutions >= 2) return true;
+        }
+
+        return true;
+    }
+
+  const completed = search(0, 0n, 0n, -1);
+  return completed ? Math.min(solutions, 2) : null;
+}
+
+// Add clues until there is exactly one solution.
+function createPuzzle(level) {
+    const config = SETTINGS[level];
+    const size = config.size;
+
+    let solution = null;
+
+    for (let attempt = 0; attempt < 20; attempt++) {
+        solution = generateFleet(size, config.fleet);
+        if (solution) break;
+    }
+
+    if (!solution) {
+        throw new Error("Could not generate a fleet.");
+    }
+
+    // 0 = unknown, 1 = given ship, 2 = given water
+    const givens = emptyGrid(size);
+
+    const positions = shuffle(
+        Array.from({ length: size * size }, (_, i) => i)
+    );
+
+    let clueCount = 0;
+
+    function addClue(position) {
+        const r = Math.floor(position / size);
+        const c = position % size;
+
+        if (givens[r][c] !== 0) return;
+
+        givens[r][c] = solution[r][c] === 1 ? 1 : 2;
+        clueCount++;
+    }
+
+    for (let i = 0; i < config.startingClues; i++) {
+        addClue(positions[i]);
+    }
+
+    let next = config.startingClues;
+    let result = countSolutions(
+        solution, config.fleet, givens
+    );
+
+    while (result !== 1 && next < positions.length) {
+        addClue(positions[next++]);
+
+        result = countSolutions(
+            solution, config.fleet, givens
+        );
+    }
+
+    if (result !== 1) {
+        throw new Error("Could not verify puzzle uniqueness.");
+    }
+
+    return {
+        level,
+        size,
+        fleet: [...config.fleet],
+        solution,
+        givens,
+        player: cloneGrid(givens),
+        counts: getCounts(solution),
+        seconds: 0,
+        finished: false,
+        clueCount
+    };
+}
+
+function setMessage(text, type = "") {
+    messageEl.textContent = text;
+    messageEl.className = "message " + type;
+}
+
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+
+    return (
+        String(minutes).padStart(2, "0") + ":" +
+        String(secs).padStart(2, "0")
+    );
+}
+
+function startTimer() {
+    clearInterval(timerInterval);
+
+    $("timer").textContent = "00:00";
+
+    timerInterval = setInterval(() => {
+        if (!game || game.finished) return;
+
+        game.seconds++;
+        $("timer").textContent = formatTime(game.seconds);
+    }, 1000);
+}
+
+function renderFleet() {
+    fleetEl.innerHTML = "";
+
+    for (const length of game.fleet) {
+        const ship = document.createElement("div");
+        ship.className = "fleet-ship";
+        ship.setAttribute(
+            "aria-label", `Ship of length ${length}`
+        );
+
+        for (let i = 0; i < length; i++) {
+            const segment = document.createElement("span");
+            segment.className = "fleet-segment";
+            ship.appendChild(segment);
+        }
+
+        fleetEl.appendChild(ship);
+    }
+}
+
+function renderBoard() {
+    const size = game.size;
+    boardEl.innerHTML = "";
+    boardEl.style.setProperty("--size", size);
+
+    const playerCounts = getCounts(
+        game.player.map(row =>
+            row.map(cell => cell === 1 ? 1 : 0)
+        )
+    );
+
+    // Column clues at the top
+    for (let c = 0; c < size; c++) {
+        const clue = document.createElement("div");
+        clue.className = "clue";
+
+        const target = game.counts.cols[c];
+        const current = playerCounts.cols[c];
+
+        clue.textContent = target;
+
+        if (current === target) clue.classList.add("complete");
+        if (current > target) clue.classList.add("over");
+
+        boardEl.appendChild(clue);
+    }
+
+    boardEl.appendChild(document.createElement("div"));
+
+    // Cells and row clues
+    for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+            const cell = document.createElement("button");
+            const state = game.player[r][c];
+            const given = game.givens[r][c] !== 0;
+
+            cell.type = "button";
+            cell.className = "cell";
+
+            if (state === 1) {
+                cell.classList.add("ship");
+                cell.textContent = "■";
+            } else if (state === 2) {
+                cell.classList.add("water");
+                cell.textContent = "·";
+            }
+
+            if (given) cell.classList.add("given");
+
+            cell.disabled = given || game.finished;
+            cell.setAttribute(
+                "aria-label",
+                `Row ${r + 1}, column ${c + 1}, ` +
+                (state === 1 ? "ship" :
+                state === 2 ? "water" : "unknown")
+            );
+
+            cell.addEventListener("click", () => {
+                if (game.finished || given) return;
+
+                game.player[r][c] = (game.player[r][c] + 1) % 3;
+
+                renderBoard();
+                setMessage("");
+            });
+
+            boardEl.appendChild(cell);
+        }
+
+        const clue = document.createElement("div");
+        clue.className = "clue";
+
+        const target = game.counts.rows[r];
+        const current = playerCounts.rows[r];
+
+        clue.textContent = target;
+
+        if (current === target) clue.classList.add("complete");
+        if (current > target) clue.classList.add("over");
+
+        boardEl.appendChild(clue);
+    }
+}
+
+function checkAnswer() {
+    if (!game || game.finished) return;
+
+    const size = game.size;
+
+    for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+            const expected = game.solution[r][c] === 1;
+            const actual = game.player[r][c] === 1;
+
+            if (expected !== actual) {
+                setMessage(
+                    "Not quite! Check the row and column clues.",
+                    "error"
+                );
+                return;
+            }
+        }
+    }
+
+    game.finished = true;
+    clearInterval(timerInterval);
+    renderBoard();
+
+    setMessage(
+        `Puzzle solved in ${formatTime(game.seconds)}!`,
+        "success"
+    );
+}
+
+function giveHint() {
+    if (!game || game.finished) return;
+
+    const options = [];
+
+    for (let r = 0; r < game.size; r++) {
+        for (let c = 0; c < game.size; c++) {
+            if (game.givens[r][c] !== 0) continue;
+
+            const correct = game.solution[r][c] === 1 ? 1 : 2;
+
+            if (game.player[r][c] !== correct) {
+                options.push({ r, c, correct });
+            }
+        }
+    }
+
+    if (!options.length) {
+        checkAnswer();
+        return;
+    }
+
+    const hint = options[randomInt(options.length)];
+
+    game.player[hint.r][hint.c] = hint.correct;
+    game.givens[hint.r][hint.c] = hint.correct;
+
+    renderBoard();
+    setMessage("A correct square has been revealed.");
+}
+
+function clearBoard() {
+    if (!game || game.finished) return;
+
+    game.player = cloneGrid(game.givens);
+    renderBoard();
+    setMessage("Board cleared.");
+}
+
+function revealSolution() {
+    if (!game || game.finished) return;
+
+    const confirmed = confirm("Reveal the solution? This will end the puzzle.");
+
+    if (!confirmed) return;
+
+    game.player = game.solution.map(row =>
+        row.map(cell => cell === 1 ? 1 : 2)
+    );
+
+    game.finished = true;
+    clearInterval(timerInterval);
+    renderBoard();
+
+    setMessage("Solution revealed.");
+}
+
+function newGame() {
+    const level = $("difficulty").value;
+
+    clearInterval(timerInterval);
+    setMessage("Generating puzzle...");
+
+    // Allow the status message to render first.
+    setTimeout(() => {
+            try {
+                game = createPuzzle(level);
+
+                $("difficulty-label").textContent = level.charAt(0).toUpperCase() + level.slice(1);
+
+                renderFleet();
+                renderBoard();
+                startTimer();
+
+                setMessage(`New puzzle ready! ${game.clueCount} starting clues.`);
+            } catch (error) {
+                console.error(error);
+                setMessage(
+                    "Generation failed. Please try New Puzzle.",
+                    "error"
+                );
+            }
+    }, 20);
+}
+
+$("new-game").addEventListener("click", newGame);
+$("check").addEventListener("click", checkAnswer);
+$("hint").addEventListener("click", giveHint);
+$("clear").addEventListener("click", clearBoard);
+$("reveal").addEventListener("click", revealSolution);
+
+newGame();

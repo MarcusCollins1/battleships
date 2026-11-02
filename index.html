@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Battleships</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+</head>
+<body>
+    <main class="app">
+        <header class="site-header">
+            <p class="eyebrow">THE DAILY PUZZLE</p>
+            <h1>BATTLESHIPS</h1>
+        </header>
+
+        <section class="toolbar" aria-label="Game Settings">
+            <label for="difficulty">Difficulty</label>
+            <select name="difficulty" id="difficulty">
+                <option value="easy">Easy - 6 x 6</option>
+                <option value="medium">Medium - 8 x 8</option>
+                <option value="hard">Hard - 10 x 10</option>
+            </select>
+            <button id="newGameBtn" class="primary">New Puzzle</button>
+        </section>
+
+        <section class="game-panel">
+            <div class="game-meta">
+                <span id="difficultyLabel">Medium</span>
+                <span id="timer">00:00</span>
+            </div>
+
+            <div id="board" class="board" aria-label="Puzzle board"></div>
+
+            <div class="fleet-panel">
+                <h2>Fleet to find</h2>
+                <div id="fleet" class="fleet"></div>
+            </div>
+
+            <p class="instructions">
+                Click a square to cycle between
+                <strong>unknown → ship → water</strong>.
+                Ships are straight and cannot touch,
+                even diagonally.
+            </p>
+
+            <div class="actions">
+                <button id="checkBtn" class="primary">Check Answer</button>
+                <button id="hintBtn">Hint</button>
+                <button id="clearBtn">Clear</button>
+                <button id="revealBtn">Reveal</button>
+            </div>
+
+            <p id="message" class="message" role="status" aria-live="polite"></p>
+        </section>
+
+        <footer>
+            <p>Classic Battleships logic puzzles</p>
+        </footer>
+    </main>
+</body>
+</html>

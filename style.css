@@ -1,0 +1,252 @@
+:root {
+    --paper: #f7f5ef;
+    --ink: #202a35;
+    --muted: #697783;
+    --line: #cbd3d9;
+    --navy: #234c70;
+    --sea: #d8eaf2;
+    --ship: #315f82;
+    --white: #ffffff;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: Georgia, 'Times New Roman', serif;
+}
+
+button, select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 11px 16px;
+    background: var(--white);
+    color: var(--ink);
+    font-weight: bold;
+}
+button:hover {
+    filter: brightness(0.96);
+}
+button:focus-visible,
+select:focus-visible,
+.cell:focus-visible {
+    outline: 3px solid #e2a447;
+    outline-offset: 2px;
+}
+
+button.primary {
+    background: var(--navy);
+    color: white;
+    border-color: var(--navy);
+}
+
+.app {
+    max-width: 800px;
+    margin: auto;
+    padding: 24px 16px 50px;
+}
+
+.site-header {
+    text-align: center;
+    border-bottom: 3px double var(--ink);
+    padding-bottom: 20px;
+    margin-bottom: 22px;
+}
+
+.eyebrow {
+    font: bold 12px Arial, sans-serif;
+    letter-spacing: 3px;
+    color: var(--muted);
+}
+
+h1 {
+    margin: 8px 0;
+    font-size: clamp(38px, 9vw, 68px);
+    letter-spacing: 3px;
+}
+
+.subtitle {
+    color: var(--muted);
+    font-style: italic;
+}
+
+.toolbar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+select {
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: white;
+}
+
+.game-panel {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 22px;
+    box-shadow: 0 5px 22px #2030400d;
+}
+
+.game-meta {
+    display: flex;
+    justify-content: space-between;
+    max-width: 520px;
+    margin: 0 auto 18px;
+    font: bold 14px Arial, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.board {
+    --size: 8;
+    display: grid;
+    grid-template-columns: repeat(calc(var(--size) + 1), minmax(0, 1fr));
+    gap: 3px;
+    width: min(100%, 520px);
+    margin: 0 auto;
+}
+
+.cell, .clue {
+    min-width: 0;
+    aspect-ratio: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.cell {
+    padding: 0;
+    border: 1px solid #b7c6d1;
+    border-radius: 3px;
+    background: #f1f5f7;
+    font: bold clamp(12px, 3vw, 20px) Arial, sans-serif;
+    color: var(--navy);
+    user-select: none;
+}
+.cell.ship {
+    background: var(--ship);
+    color: white;
+}
+.cell.water {
+    background: var(--sea);
+    color: #467e9e;
+}
+.cell.given {
+    cursor: default;
+    border: 2px solid #7594aa;
+}
+
+.clue {
+    font: bold clamp(12px, 3vw, 19px) Arial, sans-serif;
+}
+.clue.complete {
+    color: #21845c;
+}
+.clue.over {
+    color: #c0392b;
+}
+
+.fleet-panel {
+    max-width: 520px;
+    margin: 26px auto 0;
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+}
+.fleet-panel h2 {
+    margin: 0 0 12px;
+    font-size: 17px;
+}
+
+.fleet {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+}
+
+.fleet-ship {
+    display: flex;
+    gap: 2px;
+}
+
+.fleet-segment {
+    width: 22px;
+    height: 22px;
+    border-radius: 3px;
+    background: var(--ship);
+    border: 1px solid #244761;
+}
+
+.instructions {
+    max-width: 520px;
+    margin: 24px auto;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--muted);
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 9px;
+}
+
+.message {
+    min-height: 26px;
+    margin: 18px 0 0;
+    text-align: center;
+    font: bold 14px Arial, sans-serif;
+    color: var(--navy);
+}
+.message.error {
+    color: #b33838;
+}
+.message.success {
+    color: #208257;
+}
+
+footer {
+    text-align: center;
+    margin-top: 28px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+@media (max-width: 500px) {
+    .app {
+        padding: 14px 10px 35px;
+    }
+
+    .game-panel {
+        padding: 14px 9px;
+    }
+
+    .board {
+        gap: 2px;
+    }
+
+    .actions button {
+        flex: 1 1 40%;
+    }
+
+    .cell {
+        border-radius: 2px;
+    }
+}
