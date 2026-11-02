@@ -139,13 +139,58 @@ select {
     color: var(--navy);
     user-select: none;
 }
+
 .cell.ship {
     background: var(--ship);
+    border-color: var(--ship);
     color: white;
+    border-radius: 0;
 }
+.cell.ship.single {
+    border-radius: 50%;
+}
+.cell.ship.horizontal.start {
+    border-radius: 50% 0 0 50%;
+}
+.cell.ship.horizontal.end {
+    border-radius: 0 50% 50% 0;
+}
+.cell.ship.horizontal:not(.end) {
+    position: relative;
+}
+.cell.ship.horizontal:not(.end)::after {
+    content: "";
+    position: absolute;
+    width: 4px;
+    height: 100%;
+    background: var(--ship);
+    left: 100%;
+    top: 0;
+    pointer-events: none;
+}
+.cell.ship.vertical.start {
+    border-radius: 50% 50% 0 0;
+}
+.cell.ship.vertical.end {
+    border-radius: 0 0 50% 50%;
+}
+.cell.ship.vertical:not(.end) {
+    position: relative;
+}
+.cell.ship.vertical:not(.end)::after {
+    content: "";
+    position: absolute;
+    height: 4px;
+    width: 100%;
+    background: var(--ship);
+    top: 100%;
+    left: 0;
+    pointer-events: none;
+}
+
 .cell.water {
     background: var(--sea);
-    color: #467e9e;
+    color: transparent;
 }
 .cell.given {
     cursor: default;
@@ -248,6 +293,14 @@ footer {
 
     .cell {
         border-radius: 2px;
+    }
+
+    .cell.ship.horizontal:not(.end)::after {
+        width: 3px;
+    }
+
+    .cell.ship.vertical:not(.end)::after {
+        height: 3px;
     }
 }
 

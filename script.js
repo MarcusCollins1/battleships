@@ -480,10 +480,33 @@ function renderBoard() {
 
             if (state === 1) {
                 cell.classList.add("ship");
-                cell.textContent = "■";
+
+                // Check adjacent ship segments
+                const up = r > 0 && game.player[r - 1][c] === 1;
+                const down = r < size - 1 && game.player[r + 1][c] === 1;
+                const left = c > 0 && game.player[r][c - 1] === 1;
+                const right = c < size - 1 && game.player[r][c + 1] === 1;
+
+                // Determine ship orientation and shape
+                if (left || right) {
+                    cell.classList.add("horizontal");
+
+                    if (!left) cell.classList.add("start");
+                    if (!right) cell.classList.add("end");
+
+                } else if (up || down) {
+                    cell.classList.add("vertical");
+
+                    if (!up) cell.classList.add("start");
+                    if (!down) cell.classList.add("end");
+
+                } else {
+                    cell.classList.add("single");
+                }
+
             } else if (state === 2) {
                 cell.classList.add("water");
-                cell.textContent = "·";
+                cell.textContent = "";
             }
 
             if (given) cell.classList.add("given");
