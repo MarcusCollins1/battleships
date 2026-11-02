@@ -28,6 +28,34 @@ const messageEl = $("message");
 let game = null;
 let timerInterval = null;
 
+
+let selectedTool = "ship";
+
+const TOOLS = {
+    ship: 1,
+    water: 2,
+    clear: 0
+};
+
+function selectTool(tool) {
+    selectedTool = tool;
+
+    for (const name of Object.keys(TOOLS)) {
+        const button = $("tool-" + name);
+        const active = name === tool;
+
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
+    }
+}
+
+for (const name of Object.keys(TOOLS)) {
+    $("tool-" + name).addEventListener("click", () => {
+        selectTool(name);
+    });
+}
+
+
 function randomInt(max) {
     return Math.floor(Math.random() * max);
 }
@@ -634,13 +662,32 @@ function renderBoard() {
                 state === 2 ? "water" : "unknown")
             );
 
+            // Left-click: use the selected toolbar tool.
             cell.addEventListener("click", () => {
                 if (game.finished || given) return;
 
-                game.player[r][c] = (game.player[r][c] + 1) % 3;
+                const value = TOOLS[selectedTool];
+
+                // Clicking an already selected tile clears it.
+                game.player[r][c] = game.player[r][c] === value ? 0 : value;
 
                 renderBoard();
                 setMessage("");
+                autoCheck();
+            });
+
+            // Right-click: always mark as sea.
+            cell.addEventListener("contextmenu", event => {
+                event.preventDefault();
+
+                if (game.finished || given) return;
+
+                // Right-click sea again to clear.
+                game.player[r][c] = game.player[r][c] === 2 ? 0 : 2;
+
+                renderBoard();
+                setMessage("");
+                autoCheck();
             });
 
             boardEl.appendChild(cell);
@@ -752,6 +799,34 @@ function checkAnswer() {
     );
 }
 
+function autoCheck() {
+    if (!game || game.finished) return;
+
+    // Only attempt a full check when all ship squares
+    // have been placed.
+    const playerCounts = getCounts(
+        game.player.map(row =>
+            row.map(cell => cell === 1 ? 1 : 0)
+        )
+    );
+
+    const rowsMatch = playerCounts.rows.every(
+        (count, index) =>
+            count === game.counts.rows[index]
+    );
+
+    const colsMatch = playerCounts.cols.every(
+        (count, index) =>
+            count === game.counts.cols[index]
+    );
+
+    if (rowsMatch && colsMatch) {
+        // The existing function checks ship lengths,
+        // straightness, touching, and starting clues.
+        checkAnswer();
+    }
+}
+
 function giveHint() {
     if (!game || game.finished) return;
 
@@ -781,6 +856,7 @@ function giveHint() {
 
     renderBoard();
     setMessage("A correct square has been revealed.");
+    autoCheck();
 }
 
 function clearBoard() {
@@ -841,7 +917,6 @@ $("returnBtn").addEventListener("click", () => {
     window.location.href = "../games.html";
 });
 $("newGameBtn").addEventListener("click", newGame);
-$("checkBtn").addEventListener("click", checkAnswer);
 $("hintBtn").addEventListener("click", giveHint);
 $("clearBtn").addEventListener("click", clearBoard);
 $("revealBtn").addEventListener("click", revealSolution);

@@ -45,10 +45,10 @@
             </div>
 
             <p class="instructions">
-                Click a square to cycle between
-                <strong>unknown → ship → water</strong>.
-                Ships are straight and cannot touch,
-                even diagonally.
+                Select Ship, Sea, or Clear from the toolbar.
+                Left-click to use the selected tool.
+                Right-click a square to mark it as sea.
+                Ships cannot touch, even diagonally.
             </p>
 
             <div class="actions">
@@ -56,6 +56,25 @@
                 <button id="hintBtn">Hint</button>
                 <button id="clearBtn">Clear</button>
                 <button id="revealBtn">Reveal</button>
+            </div>
+
+            <div class="tool-spacer"></div>
+
+            <div class="tool-toolbar" role="group" aria-label="Drawing tools">
+                <button id="toolShip" class="tool-button active" type="button" aria-pressed="true">
+                    <span class="tool-symbol ship-symbol"></span>
+                    Ship
+                </button>
+
+                <button id="toolWater" class="tool-button" type="button" aria-pressed="false">
+                    <span class="tool-symbol water-symbol"></span>
+                    Sea
+                </button>
+
+                <button id="toolClear" class="tool-button" type="button" aria-pressed="false">
+                    <span class="tool-symbol clear-symbol"></span>
+                    Clear
+                </button>
             </div>
 
             <p id="message" class="message" role="status" aria-live="polite"></p>
